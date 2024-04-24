@@ -8,7 +8,7 @@ const getCommits = ({ previousCommits, startDate, endDate }) => {
     const endDateString = endDate.toISOString();
 
     exec(
-      `cd ~/code/thrivent-web && git log --after=${startDateString} --before=${endDateString} --name-only`,
+      `cd ~/code/thrivent-web && git log --numstat --pretty --after=${startDateString} --before=${endDateString}`,
       { maxBuffer: 1024 * 10000 },
       async (error, stdout, stderr) => {
         if (error) {
@@ -43,12 +43,17 @@ const getCommits = ({ previousCommits, startDate, endDate }) => {
             .filter((l) => l.trim().length > 0);
 
           const notes = notesLines.join("\n");
-          const files = fileLines;
+          const files = fileLines.map((fl) => {
+            const [adds, rems, path] = fl.split("\t");
+            return {
+              additions: parseFloat(adds),
+              removals: parseFloat(rems),
+              path,
+            };
+          });
 
           return { sha, author, notes, files, dateString, date };
         });
-
-        const nextPreviousCommits = previousCommits.concat(formatted);
 
         res(formatted);
       }
