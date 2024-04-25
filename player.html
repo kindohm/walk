@@ -36,6 +36,8 @@
     <script src="https://cdn.jsdelivr.net/npm/webmidi@latest/dist/iife/webmidi.iife.js"></script>
 
     <script>
+      let BASE_INTERVAL = 80;
+      let CLAP_THRESHOLD = 50;
       let data;
       let kick, snare, hat, clap, melody, tiny;
       let commitIndex = 0;
@@ -58,7 +60,7 @@
       }
 
       const init = async () => {
-        const resp = await fetch("./out/out.json");
+        const resp = await fetch("./out/tw.json");
         data = await resp.json();
 
         console.log("data loaded");
@@ -99,7 +101,7 @@
           stop = true;
         } else if (fileCount < 4) {
           hat.playNote("c4");
-        } else if (fileCount > 10) {
+        } else if (fileCount > CLAP_THRESHOLD) {
           hat.playNote("c4");
           kick.playNote("c4");
           clap.playNote("c4");
@@ -135,7 +137,10 @@
           });
         }
 
-        setTimeout(nextCommit, big ? 70 * fileCount * 0.2 : 70);
+        setTimeout(
+          nextCommit,
+          big ? BASE_INTERVAL * fileCount * 0.2 : BASE_INTERVAL
+        );
       };
 
       function onEnabled() {
@@ -167,12 +172,15 @@
       let fileTiles = [];
 
       const cellSize = WIDTH * 0.008;
-      const totalCols = WIDTH / cellSize;
+      const fileCellSize = WIDTH * 0.005;
+      const totalCols = 20;
+      const totalFileCols = 150;
       const roundness = 3;
 
-      const authorItemsPerRow = totalCols * 0.2;
+      const authorItemsPerRow = totalCols;
       const size = cellSize * 0.8;
-      const fileItemsPerRow = totalCols * 0.79;
+      const fileSize = fileCellSize * 0.8;
+      const fileItemsPerRow = totalFileCols;
 
       let backgroundColor;
       let foregroundColor;
@@ -198,10 +206,10 @@
         let selectedAuthorTile = {};
 
         fileTiles.forEach((item) => {
-          const x = fileCellCount * cellSize;
-          const y = HEIGHT - fileRowNum * cellSize - cellSize;
-          const lookup = filesList.find((f) => f.path === item.path);
-          const op = lookup.hits * 0.15 + 5;
+          const x = fileCellCount * fileCellSize;
+          const y = HEIGHT - fileRowNum * fileCellSize - fileCellSize;
+          // const lookup = filesList.find((f) => f.path === item.path);
+          const op = 100; //lookup.hits * 0.15 + 5;
 
           strokeWeight(0);
           // stroke(foregroundColor);
@@ -216,17 +224,17 @@
                 )
           );
           rect(
-            x + (cellSize - size) / 2,
-            y + (cellSize - size) / 2,
-            size,
-            size,
+            x + (fileCellSize - fileSize) / 2,
+            y + (fileCellSize - fileSize) / 2,
+            fileSize,
+            fileSize,
             roundness
           );
 
           if (item.selected) {
             selectedFileTiles.push({
-              x: x + (cellSize - size) / 2 + size / 2,
-              y: y + (cellSize - size) / 2 + size / 2,
+              x: x + (fileCellSize - fileSize) / 2 + fileSize / 2,
+              y: y + (fileCellSize - fileSize) / 2 + fileSize / 2,
             });
           }
 
@@ -241,11 +249,11 @@
         authorTiles.forEach((item) => {
           const x = WIDTH - authorCellCount * cellSize - cellSize;
           const y = authorRowNum * cellSize + 0;
-          const lookup = authors.find((a) => a.author === item.author);
+          // const lookup = authors.find((a) => a.author === item.author);
           // console.log(lookup.author, lookup.hits);
           strokeWeight(0);
 
-          const op = lookup.hits * 0.15 + 5;
+          const op = 200; // lookup.hits * 0.15 + 5;
 
           // stroke(0);
           fill(
