@@ -5,13 +5,11 @@ const { add } = require("date-fns");
 const CHUNK_DAY_SIZE = 10;
 
 const getCommitsFromOutput = (output) => {
+  const splits = output.split("\ncommit ");
 
-  const splits = output.split("\ncommit ")
-
-  const filtered = splits.filter(c => c.trim().length > 0);
+  const filtered = splits.filter((c) => c.trim().length > 0);
   return filtered;
-
-}
+};
 
 const getCommits = ({ previousCommits, startDate, endDate }) => {
   return new Promise((res, rej) => {
@@ -21,7 +19,7 @@ const getCommits = ({ previousCommits, startDate, endDate }) => {
     console.log(startDateString);
 
     exec(
-      `cd ~/code/react && git log --numstat --pretty --after=${startDateString} --before=${endDateString}`,
+      `cd ~/code/thrivent-web && git log --numstat --pretty --after=${startDateString} --before=${endDateString}`,
       { maxBuffer: 1024 * 10000 },
       async (error, stdout, stderr) => {
         if (error) {
@@ -34,8 +32,6 @@ const getCommits = ({ previousCommits, startDate, endDate }) => {
           return;
         }
 
-      
-
         const raw = getCommitsFromOutput(stdout); // stdout.split("commit ").filter((c) => c.trim().length > 0);
         if (raw.length === 0) {
           res(previousCommits);
@@ -45,7 +41,7 @@ const getCommits = ({ previousCommits, startDate, endDate }) => {
           try {
             const lines = commit.split("\n");
 
-            const sha = lines[0];
+            const sha = lines[0].replace("commit ", "").substring(0, 8);
             const author = lines[1].substring(8);
             const dateString = lines[2].substring(8);
             const date = new Date(dateString);
@@ -57,22 +53,23 @@ const getCommits = ({ previousCommits, startDate, endDate }) => {
               .map((n) => n.substring(4));
             const fileLines = lines
               .filter((l, i) => i > spaceIndex)
-              .filter((l) => l.trim().length > 0);
+              .filter((l) => l.trim().length > 0)
+              .filter((l) => l.indexOf("=>") === -1);
 
             const notes = notesLines.join("\n");
             const files = fileLines.map((fl) => {
               const [adds, rems, path] = fl.split("\t");
               return {
-                additions: parseFloat(adds),
-                removals: parseFloat(rems),
+                add: parseFloat(adds),
+                rem: parseFloat(rems),
                 path,
               };
             });
 
-            return { sha, author, notes, files, dateString, date };
+            return { sha, author, notes, files, date };
           } catch (err) {
             console.error("error doing stuff", err.message);
-            console.error('commit', commit)
+            console.error("commit", commit);
             throw err;
           }
         });
@@ -103,9 +100,13 @@ const main = async () => {
     startDate = add(startDate, { days: -CHUNK_DAY_SIZE });
   }
 
+  commits = commits.sort((a, b) => {
+    return a.date > b.date ? -1 : 1;
+  });
+
   console.log("commits:", commits.length);
 
-  console.log('writing file...')
+  console.log("writing file...");
   fs.writeFileSync(
     `${__dirname}/out/out.json`,
     JSON.stringify(commits, null, 2),

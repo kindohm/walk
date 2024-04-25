@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html>
+  <body>
+    <main></main>
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.3/p5.min.js"
+      integrity="sha512-0zGLOFv/+OQ6YfVCSGDQWhrDRx0ONmBqWvs3gI4olm8i6xtKoG1FhEnB4eTaWCVnojyfUDgE8Izeln+mAJAkFA=="
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    ></script>
+
+    <script>
+      const WIDTH = 1600;
+      const HEIGHT = 400;
+      let data;
+      let tree;
+      let depth = 1;
+      const MAX_COMMITS = 10000;
+
+      function preload() {
+        fetch("./out/out.json")
+          .then((response) => response.json())
+          .then((json) => {
+            data = json;
+          });
+      }
+
+      function addFileToTree(file) {
+        const parts = file.path.split("/");
+        depth = parts.length > depth ? parts.length : depth;
+        const directories = parts.slice(0, parts.length - 2);
+        const filename = parts.slice(parts.length - 1);
+
+        let lastParent = tree;
+        directories.forEach((directory, i) => {
+          if (!lastParent[directory]) {
+            lastParent[directory] = {};
+          }
+          lastParent = lastParent[directory];
+        });
+
+        if (!lastParent.files) {
+          lastParent.files = [];
+        }
+
+        if (!lastParent.files.includes(filename)) {
+          lastParent.files = lastParent.files.concat([filename]);
+        }
+      }
+
+      function addCommitToTree(commit) {
+        const { files, sha } = commit;
+        // console.log("adding commit", sha);
+        // console.log(`${files.length} files`);
+        files.forEach(addFileToTree);
+      }
+
+      let commitIndex = 0;
+
+      function setup() {
+        tree = {};
+        createCanvas(WIDTH, HEIGHT);
+
+        const id = setInterval(() => {
+          if (!data) {
+            console.log("no data yet");
+            return;
+          }
+
+          if (commitIndex >= MAX_COMMITS) {
+            console.log("stopping for sanity");
+            clearInterval(id);
+            return;
+          }
+
+          try {
+            addCommitToTree(data[commitIndex]);
+            commitIndex += 1;
+            dodraw();
+          } catch (err) {
+            console.error(err);
+            clearInterval(id);
+          }
+        }, 50);
+      }
+
+      let blockHeight = HEIGHT;
+      let knownDepth = 0;
+
+      function drawNode(node, currentDepth, x, availableWidth) {
+        const directories = Object.keys(node).filter((n) => n !== "files");
+
+        if (currentDepth > knownDepth && directories.length > 0) {
+          knownDepth = currentDepth;
+          blockHeight = HEIGHT / (knownDepth + 1);
+        }
+        const dirWidth = availableWidth / directories.length;
+        directories.forEach((directory, i) => {
+          strokeWeight(1);
+          stroke(20);
+          fill(200, 100, 100);
+          rect(
+            x + i * dirWidth,
+            currentDepth * blockHeight,
+            dirWidth,
+            blockHeight
+          );
+          //   fill(20);
+          //   textSize(10);
+          //   text(directory, x + i * dirWidth, currentDepth * blockHeight + 20);
+          drawNode(
+            node[directory],
+            currentDepth + 1,
+            x + i * dirWidth,
+            dirWidth
+          );
+
+          fill(0);
+          textSize(30);
+          text(commitIndex, 0, 20);
+        });
+      }
+
+      function dodraw() {
+        blockHeight = HEIGHT / (knownDepth + 1);
+        background(220);
+
+        drawNode(tree, 0, 0, WIDTH);
+      }
+    </script>
+  </body>
+</html>
