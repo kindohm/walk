@@ -41,7 +41,7 @@ const getCommits = ({ previousCommits, startDate, endDate }) => {
           try {
             const lines = commit.split("\n");
 
-            const sha = lines[0].replace("commit ", "").substring(0, 8);
+            const sha = lines[0].replace("commit ", "");
             const author = lines[1].substring(8);
             const dateString = lines[2].substring(8);
             const date = new Date(dateString);
