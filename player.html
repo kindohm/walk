@@ -47,6 +47,7 @@
       let data;
       let kick, snare, hat, clap, melody, tiny;
       let commitIndex = 0;
+      let currentCommit;
       const authors = [];
       const filesList = [];
       const shaLabel = document.getElementById("sha-label");
@@ -132,6 +133,8 @@
         }
 
         if (!stop) {
+          currentCommit = commit;
+
           shaLabel.innerHTML = `${sha} (${commitIndex} / ${data.commits.length})`; // sha + " (" + commitIndex + ")";
           statsLabel.innerHTML = `${adds} / ${rems}`;
 
@@ -148,7 +151,7 @@
           });
         }
 
-        setTimeout(nextCommit, big ? 80 * fileCount * 0.5 : 80);
+        setTimeout(nextCommit, big ? 80 * fileCount * 0.2 : 80);
       };
 
       function onEnabled() {
@@ -173,25 +176,34 @@
 
       init();
 
-      const WIDTH = 1600;
-      const HEIGHT = 800;
+      let WIDTH = 2000;
+      let HEIGHT = 1200;
 
       let authorTiles = [];
       let fileTiles = [];
 
+      const cellSize = WIDTH * 0.007;
+      const totalCols = WIDTH / cellSize;
+      const roundness = 3;
+
+      const authorItemsPerRow = totalCols * 0.2;
+      const size = cellSize * 0.7;
+      const fileItemsPerRow = totalCols * 0.79;
+
+      let backgroundColor;
+      let foregroundColor;
+      let selectedColor;
+
       function setup() {
+        backgroundColor = color(0, 0, 0, 10);
+        foregroundColor = color(100, 100, 100);
+        selectedColor = color(255, 255, 255);
+        unselectedColor = foregroundColor;
         createCanvas(WIDTH, HEIGHT);
       }
 
-      const cellSize = 20;
-      const totalCols = WIDTH / cellSize;
-
-      const authorItemsPerRow = totalCols * 0.2;
-      const size = cellSize - 4;
-      const fileItemsPerRow = totalCols * 0.75;
-
       function draw() {
-        background(220, 220, 220, 10);
+        background(backgroundColor);
 
         let authorCellCount = 0;
         let authorRowNum = 0;
@@ -204,14 +216,15 @@
         fileTiles.forEach((item) => {
           const x = fileCellCount * cellSize;
           const y = HEIGHT - fileRowNum * cellSize - cellSize;
-          strokeWeight(1);
-          stroke(0);
-          fill(item.selected ? 255 : 100);
+          strokeWeight(0);
+          // stroke(foregroundColor);
+          fill(item.selected ? selectedColor : unselectedColor);
           rect(
             x + (cellSize - size) / 2,
             y + (cellSize - size) / 2,
             size,
-            size
+            size,
+            roundness
           );
 
           if (item.selected) {
@@ -233,14 +246,15 @@
           const x = WIDTH - authorCellCount * cellSize - cellSize;
           const y = authorRowNum * cellSize + 0;
 
-          strokeWeight(1);
-          stroke(0);
-          fill(item.selected ? 255 : 100);
+          strokeWeight(0);
+          // stroke(0);
+          fill(item.selected ? selectedColor : unselectedColor);
           rect(
             x + (cellSize - size) / 2,
             y + (cellSize - size) / 2,
             size,
-            size
+            size,
+            roundness
           );
 
           if (item.selected) {
@@ -263,9 +277,26 @@
         if (selectedFileTiles.length > 0 && selectedAuthorTile) {
           selectedFileTiles.forEach((tile) => {
             strokeWeight(1);
-            stroke(0);
+            stroke(foregroundColor);
             line(tile.x, tile.y, selectedAuthorTile.x, selectedAuthorTile.y);
           });
+        }
+
+        if (currentCommit) {
+          fill(selectedColor);
+          stroke(foregroundColor);
+          strokeWeight(0);
+          // textSize(12);
+          textFont("Monaco", 12);
+          text(
+            `${currentCommit.sha}\n${currentCommit.date}\n${
+              currentCommit.author
+            }\n+${currentCommit.adds ?? 0} / -${currentCommit.rems ?? 0}\n\n${
+              currentCommit.notes ?? ""
+            }`,
+            20,
+            20
+          );
         }
       }
     </script>

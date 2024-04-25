@@ -2,7 +2,7 @@ const { exec } = require("child_process");
 const fs = require("fs");
 const { add } = require("date-fns");
 
-const CHUNK_DAY_SIZE = 10;
+const CHUNK_DAY_SIZE = 12;
 
 const getCommitsFromOutput = (output) => {
   const splits = output.split("\ncommit ");
@@ -84,6 +84,7 @@ const getCommits = ({ previousCommits, startDate, endDate }) => {
               fileCount: files.length ?? 0,
               adds,
               rems,
+              notes,
             };
           } catch (err) {
             console.error("error doing stuff", err.message);
@@ -131,11 +132,38 @@ const main = async () => {
     return acc < current.rems ? current.rems : acc;
   }, 0);
 
+  const uniqueFiles = commits.reduce((acc, current) => {
+    const files = current.files.map((f) => f.path);
+    const newUniqueFiles = [];
+
+    files.forEach((file) => {
+      if (!acc.includes(file)) {
+        newUniqueFiles.push(file);
+      }
+    });
+
+    return acc.concat(newUniqueFiles);
+  }, []);
+
+  const uniqueAuthors = commits.reduce((acc, current) => {
+    if (!acc.includes(current.author)) {
+      return acc.concat(current.author);
+    }
+    return acc;
+  }, []);
+
   console.log("writing file...");
   fs.writeFileSync(
     `${__dirname}/out/out.json`,
     JSON.stringify(
-      { commits, maxAdd, maxRem, numCommits: commits.length },
+      {
+        maxAdd,
+        maxRem,
+        numCommits: commits.length,
+        uniqueFiles: uniqueFiles.length,
+        uniqueAuthors: uniqueAuthors.length,
+        commits,
+      },
       null,
       2
     ),
