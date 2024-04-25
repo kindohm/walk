@@ -19,7 +19,7 @@ const getCommits = ({ previousCommits, startDate, endDate }) => {
     console.log(startDateString);
 
     exec(
-      `cd ~/code/thrivent-web && git log --numstat --pretty --after=${startDateString} --before=${endDateString}`,
+      `cd ~/code/react && git log --numstat --pretty --after=${startDateString} --before=${endDateString}`,
       { maxBuffer: 1024 * 10000 },
       async (error, stdout, stderr) => {
         if (error) {
@@ -66,7 +66,25 @@ const getCommits = ({ previousCommits, startDate, endDate }) => {
               };
             });
 
-            return { sha, author, notes, files, date };
+            const { adds, rems } = files.reduce(
+              (acc, current) => {
+                return {
+                  adds: acc.adds + current.add,
+                  rems: acc.rems + current.rem,
+                };
+              },
+              { adds: 0, rems: 0 }
+            );
+
+            return {
+              sha,
+              author,
+              files,
+              date,
+              fileCount: files.length ?? 0,
+              adds,
+              rems,
+            };
           } catch (err) {
             console.error("error doing stuff", err.message);
             console.error("commit", commit);
@@ -106,10 +124,21 @@ const main = async () => {
 
   console.log("commits:", commits.length);
 
+  const maxAdd = commits.reduce((acc, current) => {
+    return acc < current.adds ? current.adds : acc;
+  }, 0);
+  const maxRem = commits.reduce((acc, current) => {
+    return acc < current.rems ? current.rems : acc;
+  }, 0);
+
   console.log("writing file...");
   fs.writeFileSync(
     `${__dirname}/out/out.json`,
-    JSON.stringify(commits, null, 2),
+    JSON.stringify(
+      { commits, maxAdd, maxRem, numCommits: commits.length },
+      null,
+      2
+    ),
     "utf-8"
   );
 

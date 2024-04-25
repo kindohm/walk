@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <style>
+      body {
+        font-family: sans-serif;
+      }
+
+      .lists {
+        display: flex;
+      }
+
+      ul {
+        background-color: #ccc;
+        padding: 2rem;
+        margin: 2rem;
+      }
+
+      h1 {
+        font-family: monospace;
+        margin-left: 2rem;
+      }
+    </style>
+  </head>
+  <body>
+    <div>
+      <h1 id="sha-label"></h1>
+      <h2 id="stats-label"></h2>
+    </div>
+    <main></main>
+    <div class="lists">
+      <ul id="authors-list"></ul>
+      <ul id="files-list"></ul>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.3/p5.min.js"
+      integrity="sha512-0zGLOFv/+OQ6YfVCSGDQWhrDRx0ONmBqWvs3gI4olm8i6xtKoG1FhEnB4eTaWCVnojyfUDgE8Izeln+mAJAkFA=="
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    ></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/webmidi@latest/dist/iife/webmidi.iife.js"></script>
+
+    <script>
+      let data;
+      let kick, snare, hat, clap, melody, tiny;
+      let commitIndex = 0;
+      const authors = [];
+      const filesList = [];
+      const shaLabel = document.getElementById("sha-label");
+      const authorsList = document.getElementById("authors-list");
+      const statsLabel = document.getElementById("stats-label");
+      const filesListElement = document.getElementById("files-list");
+
+      const scale = ["d4", "f4", "g4", "a4", "c4"];
+
+      function randInt(min, max) {
+        const minCeiled = Math.ceil(min);
+        const maxFloored = Math.floor(max);
+        return Math.floor(
+          Math.random() * (maxFloored - minCeiled + 1) + minCeiled
+        ); // The maximum is inclusive and the minimum is inclusive
+      }
+
+      const addAuthor = (author) => {
+        const item = document.createElement("li");
+        item.innerHTML = author;
+        authorsList.appendChild(item);
+      };
+
+      const addFile = (file) => {
+        const item = document.createElement("li");
+        item.innerHTML = file;
+        filesListElement.insertBefore(item, filesListElement.firstChild);
+      };
+
+      const init = async () => {
+        const resp = await fetch("./out/out.json");
+        data = await resp.json();
+
+        console.log("data loaded");
+
+        WebMidi.enable()
+          .then(onEnabled)
+          .catch((err) => console.error(err));
+      };
+
+      const nextCommit = () => {
+        if (commitIndex > data.commits.length - 1) return;
+        const commit = data.commits[commitIndex];
+        commitIndex++;
+
+        const { sha, author, fileCount, adds, rems, date, files } = commit;
+        const paths = files.map((f) => f.path);
+
+        if (date !== null && !authors.includes(author)) {
+          authors.push(author);
+          addAuthor(author);
+          authorTiles.push({ author, selected: false });
+
+          melody.playNote(randInt(30, 70));
+        }
+
+        if (!!date && files?.length > 0) {
+          files.forEach((file) => {
+            if (!filesList.includes(file.path)) {
+              filesList.push(file.path);
+              addFile(file.path);
+              fileTiles.push({ file, path: file.path, selected: false });
+            }
+          });
+        }
+
+        let stop = false;
+        let big = false;
+        if (fileCount < 2) {
+          Math.random() > 0.5 && tiny.playNote("c4");
+          stop = true;
+        } else if (fileCount < 4) {
+          hat.playNote("c4");
+        } else if (fileCount > 10) {
+          hat.playNote("c4");
+          kick.playNote("c4");
+          clap.playNote("c4");
+          big = true;
+        } else if (adds > rems) {
+          kick.playNote("c4");
+        } else {
+          snare.playNote("c4");
+        }
+
+        if (!stop) {
+          shaLabel.innerHTML = `${sha} (${commitIndex} / ${data.commits.length})`; // sha + " (" + commitIndex + ")";
+          statsLabel.innerHTML = `${adds} / ${rems}`;
+
+          authorTiles = authorTiles.map((item) => {
+            return item.author === author
+              ? { ...item, selected: true }
+              : { ...item, selected: false };
+          });
+
+          fileTiles = fileTiles.map((item) => {
+            return paths.includes(item.path)
+              ? { ...item, selected: true }
+              : { ...item, selected: false };
+          });
+        }
+
+        setTimeout(nextCommit, big ? 80 * fileCount * 0.5 : 80);
+      };
+
+      function onEnabled() {
+        console.log("MIDI enabled");
+        console.log(WebMidi.outputs); //  WebMidi.outputs.forEach((o) => console.log(o.name));
+
+        const device = WebMidi.outputs.find(
+          (output) => output.name === "Elektron Syntakt"
+        );
+
+        kick = device.channels[1];
+        snare = device.channels[2];
+        clap = device.channels[3];
+        hat = device.channels[4];
+        melody = device.channels[5];
+        tiny = device.channels[6];
+
+        console.log("MIDI initialized");
+
+        setTimeout(nextCommit, 80);
+      }
+
+      init();
+
+      const WIDTH = 1600;
+      const HEIGHT = 800;
+
+      let authorTiles = [];
+      let fileTiles = [];
+
+      function setup() {
+        createCanvas(WIDTH, HEIGHT);
+      }
+
+      const cellSize = 20;
+      const totalCols = WIDTH / cellSize;
+
+      const authorItemsPerRow = totalCols * 0.2;
+      const size = cellSize - 4;
+      const fileItemsPerRow = totalCols * 0.75;
+
+      function draw() {
+        background(220, 220, 220, 10);
+
+        let authorCellCount = 0;
+        let authorRowNum = 0;
+        let fileCellCount = 0;
+        let fileRowNum = 0;
+
+        const selectedFileTiles = [];
+        let selectedAuthorTile = {};
+
+        fileTiles.forEach((item) => {
+          const x = fileCellCount * cellSize;
+          const y = HEIGHT - fileRowNum * cellSize - cellSize;
+          strokeWeight(1);
+          stroke(0);
+          fill(item.selected ? 255 : 100);
+          rect(
+            x + (cellSize - size) / 2,
+            y + (cellSize - size) / 2,
+            size,
+            size
+          );
+
+          if (item.selected) {
+            selectedFileTiles.push({
+              x: x + (cellSize - size) / 2 + size / 2,
+              y: y + (cellSize - size) / 2 + size / 2,
+            });
+          }
+
+          fileCellCount++;
+
+          if (fileCellCount >= fileItemsPerRow) {
+            fileRowNum++;
+            fileCellCount = 0;
+          }
+        });
+
+        authorTiles.forEach((item) => {
+          const x = WIDTH - authorCellCount * cellSize - cellSize;
+          const y = authorRowNum * cellSize + 0;
+
+          strokeWeight(1);
+          stroke(0);
+          fill(item.selected ? 255 : 100);
+          rect(
+            x + (cellSize - size) / 2,
+            y + (cellSize - size) / 2,
+            size,
+            size
+          );
+
+          if (item.selected) {
+            selectedAuthorTile = {
+              x: x + (cellSize - size) / 2 + size / 2,
+              y: y + (cellSize - size) / 2 + size / 2,
+            };
+          }
+
+          authorCellCount++;
+
+          if (authorCellCount >= authorItemsPerRow) {
+            authorRowNum++;
+            authorCellCount = 0;
+          }
+        });
+
+        // console.log(selectedAuthorTile);
+
+        if (selectedFileTiles.length > 0 && selectedAuthorTile) {
+          selectedFileTiles.forEach((tile) => {
+            strokeWeight(1);
+            stroke(0);
+            line(tile.x, tile.y, selectedAuthorTile.x, selectedAuthorTile.y);
+          });
+        }
+      }
+    </script>
+  </body>
+</html>
