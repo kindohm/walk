@@ -101,7 +101,7 @@ const main = async () => {
   }
 
   commits = commits.sort((a, b) => {
-    return a.date > b.date ? -1 : 1;
+    return a.date > b.date ? 1 : -1;
   });
 
   console.log("commits:", commits.length);
