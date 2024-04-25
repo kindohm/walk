@@ -23,15 +23,7 @@
     </style>
   </head>
   <body>
-    <div>
-      <h1 id="sha-label"></h1>
-      <h2 id="stats-label"></h2>
-    </div>
     <main></main>
-    <div class="lists">
-      <ul id="authors-list"></ul>
-      <ul id="files-list"></ul>
-    </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
 
     <script
@@ -50,10 +42,10 @@
       let currentCommit;
       const authors = [];
       const filesList = [];
-      const shaLabel = document.getElementById("sha-label");
-      const authorsList = document.getElementById("authors-list");
-      const statsLabel = document.getElementById("stats-label");
-      const filesListElement = document.getElementById("files-list");
+      // const shaLabel = document.getElementById("sha-label");
+      // const authorsList = document.getElementById("authors-list");
+      // const statsLabel = document.getElementById("stats-label");
+      // const filesListElement = document.getElementById("files-list");
 
       const scale = ["d4", "f4", "g4", "a4", "c4"];
 
@@ -64,18 +56,6 @@
           Math.random() * (maxFloored - minCeiled + 1) + minCeiled
         ); // The maximum is inclusive and the minimum is inclusive
       }
-
-      const addAuthor = (author) => {
-        const item = document.createElement("li");
-        item.innerHTML = author;
-        authorsList.appendChild(item);
-      };
-
-      const addFile = (file) => {
-        const item = document.createElement("li");
-        item.innerHTML = file;
-        filesListElement.insertBefore(item, filesListElement.firstChild);
-      };
 
       const init = async () => {
         const resp = await fetch("./out/out.json");
@@ -98,7 +78,6 @@
 
         if (date !== null && !authors.includes(author)) {
           authors.push(author);
-          addAuthor(author);
           authorTiles.push({ author, selected: false });
 
           melody.playNote(randInt(30, 70));
@@ -108,7 +87,6 @@
           files.forEach((file) => {
             if (!filesList.includes(file.path)) {
               filesList.push(file.path);
-              addFile(file.path);
               fileTiles.push({ file, path: file.path, selected: false });
             }
           });
@@ -134,9 +112,6 @@
 
         if (!stop) {
           currentCommit = commit;
-
-          shaLabel.innerHTML = `${sha} (${commitIndex} / ${data.commits.length})`; // sha + " (" + commitIndex + ")";
-          statsLabel.innerHTML = `${adds} / ${rems}`;
 
           authorTiles = authorTiles.map((item) => {
             return item.author === author
