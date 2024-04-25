@@ -40,8 +40,8 @@
       let kick, snare, hat, clap, melody, tiny;
       let commitIndex = 0;
       let currentCommit;
-      const authors = [];
-      const filesList = [];
+      let authors = [];
+      let filesList = [];
       // const shaLabel = document.getElementById("sha-label");
       // const authorsList = document.getElementById("authors-list");
       // const statsLabel = document.getElementById("stats-label");
@@ -76,8 +76,8 @@
         const { sha, author, fileCount, adds, rems, date, files } = commit;
         const paths = files.map((f) => f.path);
 
-        if (date !== null && !authors.includes(author)) {
-          authors.push(author);
+        if (date !== null && !authors.find((a) => a.author === author)) {
+          authors.push({ author, hits: 1 });
           authorTiles.push({ author, selected: false });
 
           melody.playNote(randInt(30, 70));
@@ -85,8 +85,8 @@
 
         if (!!date && files?.length > 0) {
           files.forEach((file) => {
-            if (!filesList.includes(file.path)) {
-              filesList.push(file.path);
+            if (!filesList.find((f) => f.path === file.path)) {
+              filesList.push({ path: file.path, hits: 1 });
               fileTiles.push({ file, path: file.path, selected: false });
             }
           });
@@ -113,6 +113,15 @@
         if (!stop) {
           currentCommit = commit;
 
+          authors = authors.map((a) => {
+            return a.author === author ? { ...a, hits: a.hits + 1 } : a;
+          });
+
+          filesList = filesList.map((f) => {
+            const hit = paths.includes(f.path);
+            return hit ? { ...f, hits: f.hits + 1 } : f;
+          });
+
           authorTiles = authorTiles.map((item) => {
             return item.author === author
               ? { ...item, selected: true }
@@ -126,7 +135,7 @@
           });
         }
 
-        setTimeout(nextCommit, big ? 80 * fileCount * 0.2 : 80);
+        setTimeout(nextCommit, big ? 70 * fileCount * 0.2 : 70);
       };
 
       function onEnabled() {
@@ -151,18 +160,18 @@
 
       init();
 
-      let WIDTH = 2000;
+      let WIDTH = 2400;
       let HEIGHT = 1200;
 
       let authorTiles = [];
       let fileTiles = [];
 
-      const cellSize = WIDTH * 0.007;
+      const cellSize = WIDTH * 0.008;
       const totalCols = WIDTH / cellSize;
       const roundness = 3;
 
       const authorItemsPerRow = totalCols * 0.2;
-      const size = cellSize * 0.7;
+      const size = cellSize * 0.8;
       const fileItemsPerRow = totalCols * 0.79;
 
       let backgroundColor;
@@ -191,9 +200,21 @@
         fileTiles.forEach((item) => {
           const x = fileCellCount * cellSize;
           const y = HEIGHT - fileRowNum * cellSize - cellSize;
+          const lookup = filesList.find((f) => f.path === item.path);
+          const op = lookup.hits * 0.15 + 5;
+
           strokeWeight(0);
           // stroke(foregroundColor);
-          fill(item.selected ? selectedColor : unselectedColor);
+          fill(
+            item.selected
+              ? selectedColor
+              : color(
+                  Math.max(0, 255 - op),
+                  Math.max(0, 255 - op),
+                  255,
+                  Math.min(200, Math.ceil(op))
+                )
+          );
           rect(
             x + (cellSize - size) / 2,
             y + (cellSize - size) / 2,
@@ -220,10 +241,23 @@
         authorTiles.forEach((item) => {
           const x = WIDTH - authorCellCount * cellSize - cellSize;
           const y = authorRowNum * cellSize + 0;
-
+          const lookup = authors.find((a) => a.author === item.author);
+          // console.log(lookup.author, lookup.hits);
           strokeWeight(0);
+
+          const op = lookup.hits * 0.15 + 5;
+
           // stroke(0);
-          fill(item.selected ? selectedColor : unselectedColor);
+          fill(
+            item.selected
+              ? selectedColor
+              : color(
+                  Math.max(0, 255 - op),
+                  Math.max(0, 255 - op),
+                  255,
+                  Math.min(200, Math.ceil(op))
+                )
+          );
           rect(
             x + (cellSize - size) / 2,
             y + (cellSize - size) / 2,
