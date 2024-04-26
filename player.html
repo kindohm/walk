@@ -86,10 +86,6 @@
 
         const { sha, author, fileCount, adds, rems, date, files } = commit;
 
-        if (!authorTiles.find((a) => a.author === author)) {
-          melody.playNote(randInt(30, 70));
-        }
-
         let stop = false;
         if (fileCount < 2) {
           Math.random() > 0.5 && tiny.playNote("c4");
@@ -114,6 +110,10 @@
           anchor2Y = initialAnchor2;
           currentCommit = commit;
           const paths = files.map((f) => f.path);
+
+          if (!authorTiles.find((a) => a.author === author)) {
+            melody.playNote(randInt(30, 70));
+          }
 
           // update state here....
           const authorTile = authorTiles.find((a) => a.author === author);
@@ -199,7 +199,7 @@
       let HEIGHT = 800;
 
       let authorSectionWidth = WIDTH * 0.14;
-      let authorRowSize = 10;
+      let authorRowSize = 8;
       let authorCellSize = authorSectionWidth / authorRowSize;
       let authorCellSizeHalf = authorCellSize / 2;
       let authorShapeSize = authorCellSize * 0.9;
