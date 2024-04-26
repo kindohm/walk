@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <style>
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+      }
+    </style>
+  </head>
+  <body>
+    <main></main>
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.3/p5.min.js"
+      integrity="sha512-0zGLOFv/+OQ6YfVCSGDQWhrDRx0ONmBqWvs3gI4olm8i6xtKoG1FhEnB4eTaWCVnojyfUDgE8Izeln+mAJAkFA=="
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    ></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/webmidi@latest/dist/iife/webmidi.iife.js"></script>
+
+    <script>
+      let WIDTH = 800;
+      let HEIGHT = 800;
+      let dim = 1;
+      let commits = [];
+      let tileWidth = 1;
+      let tileHeight = 1;
+      let voice, hat;
+      let maxAdd, maxRem;
+      let clock = 0;
+      let currentCommit;
+
+      const interval = 90;
+
+      const addsScale = [
+        "c4",
+        "d4",
+        "f4",
+        "g4",
+        "a4",
+        "c5",
+        "d5",
+        "f5",
+        "g5",
+        "a5",
+        "c6",
+        "d6",
+        "f6",
+        "g6",
+        "a6",
+      ];
+
+      const remsScale = [
+        "c2",
+        "d2",
+        "f2",
+        "g2",
+        "a2",
+        "c3",
+        "d3",
+        "f3",
+        "g3",
+        "a3",
+      ];
+
+      let playhead = {
+        row: 0,
+        col: 0,
+      };
+
+      const initMidi = async () => {
+        await WebMidi.enable();
+        onEnabled();
+        await loadData();
+
+        setInterval(() => {
+          updatePlayhead();
+        }, interval);
+      };
+
+      function onEnabled() {
+        console.log("MIDI enabled");
+        console.log(WebMidi.outputs);
+
+        const device = WebMidi.outputs.find(
+          (output) => output.name === "Elektron Syntakt"
+        );
+
+        voice = device.channels[7];
+        hat = device.channels[4];
+        console.log("MIDI initialized");
+      }
+
+      initMidi();
+
+      let boundX1,
+        boundX2,
+        boundY1,
+        boundY2,
+        boundCol1,
+        boundCol2,
+        boundRow1,
+        boundRow2;
+
+      function setup() {
+        WIDTH = windowWidth;
+        HEIGHT = windowHeight;
+        createCanvas(WIDTH, HEIGHT);
+        boundX1 = 0;
+        boundX2 = WIDTH;
+        boundY1 = 0;
+        boundY2 = HEIGHT;
+      }
+
+      function mousePressed() {
+        boundX1 = mouseX;
+        boundY1 = mouseY;
+      }
+
+      function mouseReleased() {
+        boundX2 = mouseX;
+        boundY2 = mouseY;
+
+        if (boundX2 < boundX1 && boundY2 < boundY1) {
+          const tempx1 = boundX1;
+          const tempy1 = boundY1;
+          boundX1 = boundX2;
+          boundY1 = boundY2;
+          boundX2 = tempx1;
+          boundY2 = tempy1;
+        }
+
+        boundCol1 = Math.floor((boundX1 / WIDTH) * (dim - 1));
+        boundCol2 = Math.floor((boundX2 / WIDTH) * (dim - 1));
+        boundRow1 = Math.floor((boundY1 / HEIGHT) * (dim - 1));
+        boundRow2 = Math.floor((boundY2 / HEIGHT) * (dim - 1));
+
+        console.log({ boundRow2, boundY2, HEIGHT, dim });
+
+        playhead.col = boundCol1;
+        playhead.row = boundRow1;
+      }
+
+      function mouseDragged() {
+        boundX2 = mouseX;
+        boundY2 = mouseY;
+      }
+
+      async function loadData() {
+        const resp = await fetch("./out/out.json");
+        const data = await resp.json();
+        const { commits: coms } = data;
+        maxAdd = data.maxAdd;
+        maxRem = data.maxRem;
+
+        let row = 0;
+        let col = 0;
+
+        // const first = coms.slice(0, 2000);
+
+        dim = Math.ceil(Math.sqrt(coms.length));
+        boundCol1 = 0;
+        boundRow1 = 0;
+        boundCol2 = dim - 1;
+        boundRow2 = dim - 1;
+
+        tileWidth = Math.ceil(WIDTH / dim);
+        tileHeight = Math.ceil(HEIGHT / dim);
+
+        commits = coms.map((commit, i) => {
+          const col = i % dim;
+          if (col === 0 && i !== 0) {
+            row++;
+          }
+
+          return {
+            ...commit,
+            row: row,
+            col: col,
+            x: col * tileWidth,
+            y: row * tileHeight,
+            color: color(
+              commit.files.length === 0
+                ? 100
+                : commit.adds > commit.rems
+                ? 0
+                : Math.min(255, (180 * commit.rems) / (maxRem / 4) + 20),
+
+              commit.files.length === 0 ? 100 : 0,
+              commit.files.length === 0
+                ? 100
+                : commit.rems > commit.adds
+                ? 0
+                : Math.min(255, (180 * commit.adds) / (maxAdd / 4) + 20)
+            ),
+            isFeat: commit.notes.indexOf("feat(") === 0,
+            isFix: commit.notes.indexOf("fix(") === 0,
+            isDoc: commit.notes.indexOf("docs(") === 0,
+            isChore: commit.notes.indexOf("chore(") === 0,
+            isTest: commit.notes.indexOf("test(") === 0,
+          };
+        });
+
+        const merges = commits.filter((c) => c.isMerge);
+      }
+
+      function windowResized() {
+        WIDTH = windowWidth;
+        HEIGHT = windowHeight;
+        resizeCanvas(windowWidth, windowHeight);
+        tileWidth = Math.ceil(WIDTH / dim);
+        tileHeight = Math.ceil(HEIGHT / dim);
+
+        let row = 0;
+        let col = 0;
+
+        commits = commits.map((commit, i) => {
+          const col = i % dim;
+          if (col === 0 && i !== 0) {
+            row++;
+          }
+
+          return {
+            ...commit,
+            row: row,
+            col: col,
+            x: col * tileWidth,
+            y: row * tileHeight,
+          };
+        });
+      }
+
+      let previousMatch;
+
+      function convertRange(value, r1, r2) {
+        return ((value - r1[0]) * (r2[1] - r2[0])) / (r1[1] - r1[0]) + r2[0];
+      }
+
+      function updatePlayhead() {
+        let newRow = playhead.row;
+        let newCol = playhead.col + 1;
+
+        if (newCol < boundCol1) {
+          newCol = boundCol1;
+        }
+
+        if (newCol > boundCol2) {
+          newCol = boundCol1;
+          newRow++;
+        }
+
+        if (newRow < boundRow1) {
+          newRow = boundRow1;
+        }
+
+        if (newRow > boundRow2) {
+          newRow = boundRow1;
+        }
+
+        playhead.row = newRow;
+        playhead.col = newCol;
+
+        const commit = commits.find(
+          (c) => c.row === newRow && c.col === newCol
+        );
+        currentCommit = commit;
+        if (commit && commit.files.length > 0) {
+          let note = 50;
+
+          if (commit.adds > commit.rems) {
+            const usableMaxAdd = maxAdd * 0.01;
+            const usableAdds = Math.min(usableMaxAdd, commit.adds);
+            const index = Math.floor(
+              convertRange(
+                usableAdds,
+                [0, usableMaxAdd],
+                [0, addsScale.length - 1]
+              )
+            );
+            note = addsScale[index];
+          } else if (commit.rems > commit.adds) {
+            const usableMaxRem = maxRem * 0.01;
+            const usableRems = Math.min(usableMaxRem, commit.rems);
+            const index = Math.floor(
+              convertRange(
+                usableRems,
+                [0, usableMaxRem],
+                [remsScale.length - 1, 0]
+              )
+            );
+            note = remsScale[index];
+          } else {
+            note = addsScale[0];
+          }
+
+          // const note = Math.min(100, Math.ceil(commit.adds * 0.05 + 30));
+          voice.playNote(note, { time: "+100" });
+        }
+        if (clock % 8 === 0) {
+          // hat.playNote("c4", { time: "+100" });
+        }
+        clock++;
+      }
+
+      const coreValue = 200;
+      function draw() {
+        background(0, 0, 0, 60);
+
+        strokeWeight(5);
+        stroke(0);
+        // textSize(6);
+        commits.forEach((commit, i) => {
+          if (commit.row === playhead.row && commit.col === playhead.col) {
+            fill(255);
+          } else {
+            fill(commit.color);
+          }
+          rect(commit.x, commit.y, tileWidth, tileHeight);
+          fill(255);
+          // text(`${commit.row}:${commit.col}`, commit.x + 7, commit.y + 10);
+        });
+
+        fill(0, 0, 0, 0);
+        strokeWeight(1);
+        stroke(0, 255, 255);
+        rect(boundX1, boundY1, boundX2 - boundX1, boundY2 - boundY1);
+
+        textSize(16);
+        text(
+          `dim: ${dim}\ncol: ${playhead.col}\nrow: ${playhead.row}\nbound1: ${boundCol1}:${boundRow1}\nbound2: ${boundCol2}:${boundRow2}`,
+          10,
+          30
+        );
+
+        // if (currentCommit) {
+        //   fill(255);
+        //   strokeWeight(0);
+        //   textSize(16);
+        //   textFont("Monaco", 16);
+        //   text(
+        //     `${currentCommit.sha}\n${currentCommit.date}\n${
+        //       currentCommit.author
+        //     }\n+${currentCommit.adds ?? 0} / -${currentCommit.rems ?? 0}\n\n${
+        //       currentCommit.notes ?? ""
+        //     }`,
+        //     20,
+        //     20
+        //   );
+        // }
+      }
+    </script>
+  </body>
+</html>
