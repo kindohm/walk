@@ -13,6 +13,9 @@ const exclude = [
   "CHANGELOG.md",
   ".snap",
   ".cspell",
+  ".spec.",
+  ".cy.",
+  ".txt",
 ];
 const excludeAuthors = [
   "semantic-release-bot <semantic-release-bot@martynus.net>",

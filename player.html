@@ -65,6 +65,19 @@
         ); // The maximum is inclusive and the minimum is inclusive
       }
 
+      function cleanUpFiles() {
+        const newTiles = fileTiles.filter((ft, i) => {
+          if (i > fileTiles.length / 4) {
+            return true;
+          }
+          if (ft.hits < 3) return false;
+
+          return true;
+        });
+        console.log(`cleanup. removed ${fileTiles.length - newTiles.length}.`);
+        fileTiles = newTiles;
+      }
+
       const init = async () => {
         const resp = await fetch("./out/out.json");
         data = await resp.json();
@@ -88,6 +101,9 @@
           return;
         }
         if (commitIndex > data.commits.length - 1) return;
+        if (commitIndex > 0 && commitIndex % 200 === 0) {
+          cleanUpFiles();
+        }
         const commit = data.commits[commitIndex];
         commitIndex++;
 
