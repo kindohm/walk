@@ -97,12 +97,12 @@
         } else if (fileCount < 4) {
           hat.playNote("c4");
         } else if (fileCount > CLAP_THRESHOLD) {
-          hat.playNote("c4");
+          hat.playNote("c3");
           kick.playNote("c4");
           clap.playNote("c4");
           big = true;
         } else if (adds > rems) {
-          kick.playNote("c4");
+          kick.playNote("c3");
         } else {
           snare.playNote("c4");
         }
@@ -156,7 +156,7 @@
                 color: color(200, 200, 200),
               };
             }
-            const halfHits = (tile.hits + 1) * 0.8;
+            const halfHits = (tile.hits + 1) * 1;
             const notBlue = Math.max(255 - halfHits, 0);
 
             return {
@@ -199,13 +199,13 @@
       let HEIGHT = 800;
 
       let authorSectionWidth = WIDTH * 0.14;
-      let authorRowSize = 6;
+      let authorRowSize = 10;
       let authorCellSize = authorSectionWidth / authorRowSize;
       let authorCellSizeHalf = authorCellSize / 2;
       let authorShapeSize = authorCellSize * 0.9;
 
       let fileSectionWidth = WIDTH * 0.86;
-      let fileRowSize = 140;
+      let fileRowSize = 180;
       let fileCellSize = fileSectionWidth / fileRowSize;
       let fileCellSizeHalf = fileCellSize / 2;
       let fileShapeSize = fileCellSize * 0.8;
