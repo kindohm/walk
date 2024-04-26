@@ -2,9 +2,15 @@
 <html>
   <head>
     <style>
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+      }
+
       body {
         font-family: sans-serif;
-        background-color: #000;
       }
 
       .lists {
@@ -47,6 +53,7 @@
 
       let fileTiles = [];
       let authorTiles = [];
+      let progress = 0;
 
       const scale = ["d4", "f4", "g4", "a4", "c4"];
 
@@ -59,7 +66,7 @@
       }
 
       const init = async () => {
-        const resp = await fetch("./out/tw.json");
+        const resp = await fetch("./out/out.json");
         data = await resp.json();
 
         console.log("data loaded");
@@ -94,7 +101,7 @@
           hat.playNote("c4");
         } else if (fileCount > CLAP_THRESHOLD) {
           hat.playNote("c3");
-          kick.playNote("c4");
+          kick.playNote("c3");
           clap.playNote("c4");
           big = true;
         } else if (adds > rems) {
@@ -104,6 +111,7 @@
         }
 
         if (!stop) {
+          progress = WIDTH * (commitIndex / data.commits.length);
           anchor1X = initialAnchor1;
           anchor1Y = initialAnchor1;
           anchor2X = initialAnchor2;
@@ -213,11 +221,25 @@
       let count = 0;
       let row = 0;
 
+      function updateSizes() {
+        authorSectionWidth = WIDTH * 0.14;
+        authorRowSize = 8;
+        authorCellSize = authorSectionWidth / authorRowSize;
+        authorCellSizeHalf = authorCellSize / 2;
+        authorShapeSize = authorCellSize * 0.9;
+
+        fileSectionWidth = WIDTH * 0.86;
+        fileRowSize = 180;
+        fileCellSize = fileSectionWidth / fileRowSize;
+        fileCellSizeHalf = fileCellSize / 2;
+        fileShapeSize = fileCellSize * 0.8;
+      }
+
       function setup() {
-        // WIDTH = window.innerWidth * 0.97;
-        // HEIGHT = window.innerHeight * 0.97;
-        console.log("author cell size", authorCellSize);
+        WIDTH = windowWidth;
+        HEIGHT = windowHeight;
         createCanvas(WIDTH, HEIGHT);
+        updateSizes();
       }
 
       function keyPressed() {
@@ -235,10 +257,21 @@
       let anchor2X = initialAnchor2;
       let anchor2Y = initialAnchor2;
 
+      function windowResized() {
+        WIDTH = windowWidth;
+        HEIGHT = windowHeight;
+        resizeCanvas(windowWidth, windowHeight);
+        updateSizes();
+      }
+
       function draw() {
         background(0, 0, 0, 20);
         count = 0;
         row = 0;
+
+        strokeWeight(0);
+        fill(200, 200, 200, 40);
+        rect(0, 0, progress, 2);
 
         authorTiles.forEach((tile) => {
           const x = WIDTH - count * authorCellSize - authorCellSize;
@@ -287,13 +320,6 @@
             anchor1Y -= 0.09;
             anchor2X += 0.05;
             anchor2Y += 0.06;
-
-            // line(
-            //   x + fileCellSizeHalf,
-            //   y + fileCellSizeHalf,
-            //   selectedAuthorTileX,
-            //   selectedAuthorTileY
-            // );
           }
 
           fill(tile.color);
