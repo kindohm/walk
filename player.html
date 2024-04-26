@@ -4,6 +4,7 @@
     <style>
       body {
         font-family: sans-serif;
+        background-color: #000;
       }
 
       .lists {
@@ -42,12 +43,10 @@
       let kick, snare, hat, clap, melody, tiny;
       let commitIndex = 0;
       let currentCommit;
-      let authors = [];
-      let filesList = [];
-      // const shaLabel = document.getElementById("sha-label");
-      // const authorsList = document.getElementById("authors-list");
-      // const statsLabel = document.getElementById("stats-label");
-      // const filesListElement = document.getElementById("files-list");
+      let running = false;
+
+      let fileTiles = [];
+      let authorTiles = [];
 
       const scale = ["d4", "f4", "g4", "a4", "c4"];
 
@@ -71,31 +70,27 @@
       };
 
       const nextCommit = () => {
+        let big = false;
+
+        if (!running) {
+          setTimeout(
+            nextCommit,
+            big ? BASE_INTERVAL * fileCount * 0.2 : BASE_INTERVAL
+          );
+
+          return;
+        }
         if (commitIndex > data.commits.length - 1) return;
         const commit = data.commits[commitIndex];
         commitIndex++;
 
         const { sha, author, fileCount, adds, rems, date, files } = commit;
-        const paths = files.map((f) => f.path);
 
-        if (date !== null && !authors.find((a) => a.author === author)) {
-          authors.push({ author, hits: 1 });
-          authorTiles.push({ author, selected: false });
-
+        if (!authorTiles.find((a) => a.author === author)) {
           melody.playNote(randInt(30, 70));
         }
 
-        if (!!date && files?.length > 0) {
-          files.forEach((file) => {
-            if (!filesList.find((f) => f.path === file.path)) {
-              filesList.push({ path: file.path, hits: 1 });
-              fileTiles.push({ file, path: file.path, selected: false });
-            }
-          });
-        }
-
         let stop = false;
-        let big = false;
         if (fileCount < 2) {
           Math.random() > 0.5 && tiny.playNote("c4");
           stop = true;
@@ -113,27 +108,62 @@
         }
 
         if (!stop) {
+          anchor1X = initialAnchor1;
+          anchor1Y = initialAnchor1;
+          anchor2X = initialAnchor2;
+          anchor2Y = initialAnchor2;
           currentCommit = commit;
+          const paths = files.map((f) => f.path);
 
-          authors = authors.map((a) => {
-            return a.author === author ? { ...a, hits: a.hits + 1 } : a;
+          // update state here....
+          const authorTile = authorTiles.find((a) => a.author === author);
+          if (!authorTile) {
+            authorTiles.push({ author, hits: 1 });
+          }
+
+          authorTiles = authorTiles.map((tile) => {
+            if (tile.author === author) {
+              return {
+                ...tile,
+                hits: tile.hits + 1,
+                selected: true,
+                color: color(200, 200, 200),
+              };
+            }
+            const halfHits = (tile.hits + 1) * 0.6;
+            const notBlue = Math.max(255 - halfHits, 0);
+
+            return {
+              ...tile,
+              selected: false,
+              color: color(notBlue, notBlue, 255, Math.min(10 + halfHits, 200)),
+            };
           });
 
-          filesList = filesList.map((f) => {
-            const hit = paths.includes(f.path);
-            return hit ? { ...f, hits: f.hits + 1 } : f;
+          paths.forEach((path) => {
+            const fileTile = fileTiles.find((f) => f.path === path);
+            if (!fileTile) {
+              fileTiles.push({ path, hits: 1 });
+            }
           });
 
-          authorTiles = authorTiles.map((item) => {
-            return item.author === author
-              ? { ...item, selected: true }
-              : { ...item, selected: false };
-          });
+          fileTiles = fileTiles.map((tile) => {
+            if (paths.includes(tile.path)) {
+              return {
+                ...tile,
+                hits: tile.hits + 1,
+                selected: true,
+                color: color(200, 200, 200),
+              };
+            }
+            const halfHits = (tile.hits + 1) * 0.8;
+            const notBlue = Math.max(255 - halfHits, 0);
 
-          fileTiles = fileTiles.map((item) => {
-            return paths.includes(item.path)
-              ? { ...item, selected: true }
-              : { ...item, selected: false };
+            return {
+              ...tile,
+              selected: false,
+              color: color(notBlue, notBlue, 255, Math.min(10 + halfHits, 255)),
+            };
           });
         }
 
@@ -160,148 +190,125 @@
 
         console.log("MIDI initialized");
 
-        setTimeout(nextCommit, 80);
+        setTimeout(nextCommit, BASE_INTERVAL);
       }
 
       init();
 
-      let WIDTH = 2400;
-      let HEIGHT = 1200;
+      let WIDTH = 1400;
+      let HEIGHT = 800;
 
-      let authorTiles = [];
-      let fileTiles = [];
+      let authorSectionWidth = WIDTH * 0.14;
+      let authorRowSize = 6;
+      let authorCellSize = authorSectionWidth / authorRowSize;
+      let authorCellSizeHalf = authorCellSize / 2;
+      let authorShapeSize = authorCellSize * 0.9;
 
-      const cellSize = WIDTH * 0.008;
-      const fileCellSize = WIDTH * 0.005;
-      const totalCols = 20;
-      const totalFileCols = 150;
-      const roundness = 3;
+      let fileSectionWidth = WIDTH * 0.86;
+      let fileRowSize = 140;
+      let fileCellSize = fileSectionWidth / fileRowSize;
+      let fileCellSizeHalf = fileCellSize / 2;
+      let fileShapeSize = fileCellSize * 0.8;
 
-      const authorItemsPerRow = totalCols;
-      const size = cellSize * 0.8;
-      const fileSize = fileCellSize * 0.8;
-      const fileItemsPerRow = totalFileCols;
-
-      let backgroundColor;
-      let foregroundColor;
-      let selectedColor;
+      let count = 0;
+      let row = 0;
 
       function setup() {
-        backgroundColor = color(0, 0, 0, 10);
-        foregroundColor = color(100, 100, 100);
-        selectedColor = color(255, 255, 255);
-        unselectedColor = foregroundColor;
+        // WIDTH = window.innerWidth * 0.97;
+        // HEIGHT = window.innerHeight * 0.97;
+        console.log("author cell size", authorCellSize);
         createCanvas(WIDTH, HEIGHT);
       }
 
-      function draw() {
-        background(backgroundColor);
-
-        let authorCellCount = 0;
-        let authorRowNum = 0;
-        let fileCellCount = 0;
-        let fileRowNum = 0;
-
-        const selectedFileTiles = [];
-        let selectedAuthorTile = {};
-
-        fileTiles.forEach((item) => {
-          const x = fileCellCount * fileCellSize;
-          const y = HEIGHT - fileRowNum * fileCellSize - fileCellSize;
-          // const lookup = filesList.find((f) => f.path === item.path);
-          const op = 100; //lookup.hits * 0.15 + 5;
-
-          strokeWeight(0);
-          // stroke(foregroundColor);
-          fill(
-            item.selected
-              ? selectedColor
-              : color(
-                  Math.max(0, 255 - op),
-                  Math.max(0, 255 - op),
-                  255,
-                  Math.min(200, Math.ceil(op))
-                )
-          );
-          rect(
-            x + (fileCellSize - fileSize) / 2,
-            y + (fileCellSize - fileSize) / 2,
-            fileSize,
-            fileSize,
-            roundness
-          );
-
-          if (item.selected) {
-            selectedFileTiles.push({
-              x: x + (fileCellSize - fileSize) / 2 + fileSize / 2,
-              y: y + (fileCellSize - fileSize) / 2 + fileSize / 2,
-            });
-          }
-
-          fileCellCount++;
-
-          if (fileCellCount >= fileItemsPerRow) {
-            fileRowNum++;
-            fileCellCount = 0;
-          }
-        });
-
-        authorTiles.forEach((item) => {
-          const x = WIDTH - authorCellCount * cellSize - cellSize;
-          const y = authorRowNum * cellSize + 0;
-          // const lookup = authors.find((a) => a.author === item.author);
-          // console.log(lookup.author, lookup.hits);
-          strokeWeight(0);
-
-          const op = 200; // lookup.hits * 0.15 + 5;
-
-          // stroke(0);
-          fill(
-            item.selected
-              ? selectedColor
-              : color(
-                  Math.max(0, 255 - op),
-                  Math.max(0, 255 - op),
-                  255,
-                  Math.min(200, Math.ceil(op))
-                )
-          );
-          rect(
-            x + (cellSize - size) / 2,
-            y + (cellSize - size) / 2,
-            size,
-            size,
-            roundness
-          );
-
-          if (item.selected) {
-            selectedAuthorTile = {
-              x: x + (cellSize - size) / 2 + size / 2,
-              y: y + (cellSize - size) / 2 + size / 2,
-            };
-          }
-
-          authorCellCount++;
-
-          if (authorCellCount >= authorItemsPerRow) {
-            authorRowNum++;
-            authorCellCount = 0;
-          }
-        });
-
-        // console.log(selectedAuthorTile);
-
-        if (selectedFileTiles.length > 0 && selectedAuthorTile) {
-          selectedFileTiles.forEach((tile) => {
-            strokeWeight(1);
-            stroke(foregroundColor);
-            line(tile.x, tile.y, selectedAuthorTile.x, selectedAuthorTile.y);
-          });
+      function keyPressed() {
+        if (keyCode === ENTER) {
+          running = !running;
         }
+      }
+
+      let selectedAuthorTileX, selectedAuthorTileY;
+
+      const initialAnchor1 = 10;
+      const initialAnchor2 = 90;
+      let anchor1X = initialAnchor1;
+      let anchor1Y = initialAnchor1;
+      let anchor2X = initialAnchor2;
+      let anchor2Y = initialAnchor2;
+
+      function draw() {
+        background(0, 0, 0, 20);
+        count = 0;
+        row = 0;
+
+        authorTiles.forEach((tile) => {
+          const x = WIDTH - count * authorCellSize - authorCellSize;
+          const y = row * authorCellSize;
+          strokeWeight(0);
+          if (tile.selected) {
+            selectedAuthorTileX = x + authorCellSizeHalf;
+            selectedAuthorTileY = y + authorCellSizeHalf;
+          }
+
+          fill(tile.color);
+
+          rect(x, y, authorShapeSize, authorShapeSize);
+
+          count++;
+          if (count >= authorRowSize) {
+            count = 0;
+            row++;
+          }
+        });
+
+        count = 0;
+        row = 0;
+
+        fileTiles.forEach((tile) => {
+          const x = count * fileCellSize;
+          const y = HEIGHT - row * fileCellSize - fileCellSize;
+          strokeWeight(0);
+          if (tile.selected) {
+            strokeWeight(1);
+            stroke(200, 200, 200, 100);
+            fill(0, 0, 0, 0);
+
+            bezier(
+              x + fileCellSizeHalf,
+              y + fileCellSizeHalf,
+              anchor1X,
+              anchor1Y,
+              anchor2X,
+              anchor2Y,
+              selectedAuthorTileX,
+              selectedAuthorTileY
+            );
+
+            anchor1X += 0.1;
+            anchor1Y -= 0.09;
+            anchor2X += 0.05;
+            anchor2Y += 0.06;
+
+            // line(
+            //   x + fileCellSizeHalf,
+            //   y + fileCellSizeHalf,
+            //   selectedAuthorTileX,
+            //   selectedAuthorTileY
+            // );
+          }
+
+          fill(tile.color);
+          rect(x, y, fileShapeSize, fileShapeSize);
+
+          count++;
+          if (count >= fileRowSize) {
+            count = 0;
+            row++;
+          }
+        });
 
         if (currentCommit) {
-          fill(selectedColor);
-          stroke(foregroundColor);
+          fill(200, 200, 200);
+          stroke(200, 200, 200);
           strokeWeight(0);
           // textSize(12);
           textFont("Monaco", 16);
