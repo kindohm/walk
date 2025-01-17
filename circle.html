@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <style>
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+      }
+
+      body {
+        font-family: sans-serif;
+      }
+
+      .lists {
+        display: flex;
+      }
+
+      ul {
+        background-color: #ccc;
+        padding: 2rem;
+        margin: 2rem;
+      }
+
+      h1 {
+        font-family: monospace;
+        margin-left: 2rem;
+      }
+    </style>
+  </head>
+  <body>
+    <main></main>
+
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.3/p5.min.js"
+      integrity="sha512-0zGLOFv/+OQ6YfVCSGDQWhrDRx0ONmBqWvs3gI4olm8i6xtKoG1FhEnB4eTaWCVnojyfUDgE8Izeln+mAJAkFA=="
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    ></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/webmidi@latest/dist/iife/webmidi.iife.js"></script>
+
+    <script>
+      const maxRingPoints = 400;
+
+      const INTERVAL = 25;
+
+      let data;
+      let commitIndex = 0;
+      let WIDTH = 1;
+      let HEIGHT = 1;
+      let halfWidth = 1;
+      let halfHeight = 1;
+      let redraw = false;
+      //   let maxCircleSize = 1;
+      //   let maxCircleRadius = 0.5;
+      //   let circleGap = 100;
+      //   let commitPointSize = 6;
+      //   let commitStep = 0;
+      //   let commitRings = [{ commits: [] }];
+
+      let ringGap = 18;
+
+      let files = {};
+      let authors = {};
+      let connections = [];
+      let commitToRedraw = 0;
+
+      function setup() {
+        WIDTH = windowWidth;
+        HEIGHT = windowHeight;
+        createCanvas(WIDTH, HEIGHT);
+        updateSizes();
+        setInterval(update, INTERVAL);
+      }
+
+      function updateSizes() {
+        halfWidth = WIDTH / 2;
+        halfHeight = HEIGHT / 2;
+
+        // maxCircleSize = Math.floor(HEIGHT * 0.9);
+        // maxCircleRadius = maxCircleSize / 2;
+      }
+
+      function mousePressed() {
+        update();
+      }
+
+      function windowResized() {
+        WIDTH = windowWidth;
+        HEIGHT = windowHeight;
+        resizeCanvas(windowWidth, windowHeight);
+        updateSizes();
+      }
+
+      const ringLevelCounts = [
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      ];
+
+      function update() {
+        const commit = data.commits[commitIndex];
+
+        let totalScore = 0;
+
+        files = commit.files.reduce((acc, newFile) => {
+          const keys = Object.keys(acc);
+          if (!files[newFile.path]) {
+            // const ringLevel = Math.floor(i / maxRingPoints);
+            //           const radius = (HEIGHT * 0.9 - ringLevel * 24) / 2;
+
+            const ringLevel = Math.floor(keys.length / maxRingPoints);
+            ringLevelCounts[ringLevel]++;
+
+            totalScore += newFile.add + newFile.rem;
+
+            return {
+              ...acc,
+              [newFile.path]: {
+                ringLevel,
+                radius: (HEIGHT * 0.95 - (ringLevel + 1) * 8) / 2,
+                score: newFile.add + newFile.rem,
+              },
+            };
+          } else {
+            totalScore += acc[newFile.path].score + newFile.add + newFile.rem;
+            return {
+              ...acc,
+              [newFile.path]: {
+                ...acc[newFile.path],
+                score: acc[newFile.path].score + newFile.add + newFile.rem,
+              },
+            };
+          }
+        }, files);
+
+        if (!authors[commit.author]) {
+          authors[commit.author] = { score: 0, radius: (HEIGHT * 0.95) / 2 };
+        }
+
+        authors[commit.author].score += totalScore;
+
+        commitToRedraw = commitIndex;
+        redraw = true;
+
+        commitIndex++;
+      }
+
+      function draw() {
+        if (!redraw) {
+          return;
+        }
+
+        background(0, 0, 0, 20);
+
+        // textSize(16);
+        // fill("yellow");
+        // strokeWeight(0);
+        // text(commitIndex, 20, 20);
+        // const lines = data.commits[commitIndex].notes.split('\n\n');
+
+        const currentCommit = data.commits[commitIndex];
+        fill(200);
+        stroke(200);
+        strokeWeight(0);
+        textFont("Monaco", 10);
+        text(
+          `${currentCommit.sha}\n${currentCommit.date}\n${
+            currentCommit.author
+          }\n+${currentCommit.adds ?? 0} / -${currentCommit.rems ?? 0}\n\n${
+            currentCommit.notes ?? ""
+          }`,
+          20,
+          20
+        );
+
+        translate(halfWidth, halfHeight);
+
+        noFill();
+        strokeWeight(1);
+
+        const keys = Object.keys(files);
+
+        keys.forEach((key, i) => {
+          //   const ringLevel = Math.floor(i / maxRingPoints);
+          //   const radius = (HEIGHT * 0.9 - ringLevel * 24) / 2;
+          const { score, ringLevel, radius } = files[key];
+
+          if (i === 0 || i % maxRingPoints === 0) {
+            noFill();
+            strokeWeight(1);
+            stroke(50);
+            ellipse(0, 0, radius * 2);
+          }
+
+          const ringCount = ringLevelCounts[ringLevel];
+          const step = TWO_PI / ringCount;
+          const x = radius * sin((i % maxRingPoints) * step);
+          const y = radius * cos((i % maxRingPoints) * step);
+          files[key].x = x;
+          files[key].y = y;
+          strokeWeight(0);
+          fill(100);
+          ellipse(x, y, 2);
+        });
+
+        const authorKeys = Object.keys(authors);
+        authorKeys.forEach((key, i) => {
+          const radius = authors[key].radius;
+          if (i === 0) {
+            noFill();
+            strokeWeight(1);
+            stroke(50);
+            ellipse(0, 0, radius * 2);
+          }
+
+          const { score } = authors[key];
+          const step = TWO_PI / authorKeys.length;
+          const x = radius * sin(i * step);
+          const y = radius * cos(i * step);
+          authors[key].x = x;
+          authors[key].y = y;
+          strokeWeight(0);
+          fill(100, 100, 255);
+          ellipse(x, y, 2);
+
+          textFont("Monaco", 6);
+          text(key, x, y);
+        });
+
+        noFill();
+        strokeWeight(1);
+        stroke(100);
+        const commit = data.commits[commitToRedraw];
+        commit.files.forEach(({ path }) => {
+          const file = files[path];
+
+          bezier(
+            authors[commit.author].x,
+            authors[commit.author].y,
+            0,
+            0,
+            0,
+            0,
+            file.x,
+            file.y
+          );
+        });
+
+        // let angle = 0;
+
+        // commitRings.forEach(({ commits }, i) => {
+        //   noFill();
+        //   strokeWeight(1);
+        //   stroke(100);
+        //   const radius = maxCircleRadius - i * ringGap;
+        //   ellipse(0, 0, radius * 2);
+
+        //   const step = TWO_PI / commits.length;
+        //   let angle = 0;
+        //   strokeWeight(0);
+        //   fill(200);
+        //   commits.forEach((commit, i) => {
+        //     const x = radius * sin(angle + i * step);
+        //     const y = radius * cos(angle + i * step);
+        //     ellipse(x, y, 6);
+        //   });
+        // });
+
+        // for (let i = 0; i <= commitIndex; i++) {
+        //   if (i % maxCirclePoints === 0) {
+        //     level++;
+        //     radius -= level * circleGap;
+        //     angle = 0;
+        //     ellipse(0, 0, radius * 2);
+
+        //     commitStep = TWO_PI / (commitIndex % maxCirclePoints);
+        //   }
+
+        //   const x = radius * sin(angle);
+        //   const y = radius * cos(angle);
+
+        //   //draw ellipse at every x,y point
+        //   ellipse(x, y, commitPointSize);
+        //   angle = angle + commitStep;
+        // }
+      }
+
+      const init = async () => {
+        const resp = await fetch("./out/out.json");
+        data = await resp.json();
+
+        console.log("data loaded");
+
+        // WebMidi.enable()
+        //   .then(onEnabled)
+        //   .catch((err) => console.error(err));
+      };
+
+      init();
+    </script>
+  </body>
+</html>
