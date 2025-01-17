@@ -42,7 +42,7 @@
     <script src="https://cdn.jsdelivr.net/npm/webmidi@latest/dist/iife/webmidi.iife.js"></script>
 
     <script>
-      let BASE_INTERVAL = 100;
+      let BASE_INTERVAL = 25;
       let CLAP_THRESHOLD = 50;
       let data;
       let kick, snare, hat, clap, melody, tiny;
@@ -73,7 +73,7 @@
 
           return true;
         });
-        console.log(`cleanup. removed ${fileTiles.length - newTiles.length}.`);
+        // console.log(`cleanup. removed ${fileTiles.length - newTiles.length}.`);
         fileTiles = newTiles;
       }
 
@@ -232,13 +232,13 @@
       let HEIGHT = 800;
 
       let authorSectionWidth = WIDTH * 0.14;
-      let authorRowSize = 8;
+      let authorRowSize = 10;
       let authorCellSize = authorSectionWidth / authorRowSize;
       let authorCellSizeHalf = authorCellSize / 2;
       let authorShapeSize = authorCellSize * 0.9;
 
       let fileSectionWidth = WIDTH * 0.86;
-      let fileRowSize = 180;
+      let fileRowSize = 214;
       let fileCellSize = fileSectionWidth / fileRowSize;
       let fileCellSizeHalf = fileCellSize / 2;
       let fileShapeSize = fileCellSize * 0.8;
@@ -248,13 +248,13 @@
 
       function updateSizes() {
         authorSectionWidth = WIDTH * 0.14;
-        authorRowSize = 8;
+        // authorRowSize = 8;
         authorCellSize = authorSectionWidth / authorRowSize;
         authorCellSizeHalf = authorCellSize / 2;
         authorShapeSize = authorCellSize * 0.9;
 
         fileSectionWidth = WIDTH * 0.86;
-        fileRowSize = 180;
+        // fileRowSize = 180;
         fileCellSize = fileSectionWidth / fileRowSize;
         fileCellSizeHalf = fileCellSize / 2;
         fileShapeSize = fileCellSize * 0.8;

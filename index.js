@@ -21,6 +21,15 @@ const excludeAuthors = [
   "semantic-release-bot <semantic-release-bot@martynus.net>",
   "dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
   "github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>",
+  "xSnykGitHub-Thrivent <107882749+xSnykGitHub-Thrivent@users.noreply.github.com>",
+  "GitHubArchive <138954766+srTYvidw022SWDVY2ILKHelDpK112JPXX2bYRws@users.noreply.github.com>",
+  "GitHubArchive <138954693+1fnLW9iUgwOfJEZRzsYtAFY8rNGeD9tk5nAsbVH@users.noreply.github.com>",
+  "GitHubArchive <138954760+erDS2hAKgNd9W5fnlLmGSd8XYeLZLtdYzsTn29T@users.noreply.github.com>",
+  "GitHubArchive\\John Starlord <138954733+5FRg0n1aC4SnpHYITe1uL1wgqHc6w3Bik97Us2y@users.noreply.github.com>",
+  "GitHubArchive\\Josh Kneeland <138954692+HpETRFfedgmDpGHdVUzRpd76zCuwnTUIm6VbMr0@users.noreply.github.com>",
+  "xSnykGitHub <xSnykGitHub@Thrivent.com>",
+  "GitHubArchive <138954672+FJolDaPWXB9l7Dx9iz7sFZExCJawh0aGWPFI4ai@users.noreply.github.com>",
+  "Github Action User <gaction@thrivent.com>",
 ];
 
 const getCommitsFromOutput = (output) => {
