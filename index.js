@@ -19,6 +19,8 @@ const exclude = [
 ];
 const excludeAuthors = [
   "semantic-release-bot <semantic-release-bot@martynus.net>",
+  "dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+  "github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>",
 ];
 
 const getCommitsFromOutput = (output) => {
@@ -151,6 +153,9 @@ const main = async () => {
   let done = false;
   let commits = [];
 
+  // let max = 10;
+  // let cur = 0;
+
   while (!done) {
     const nextCommits = await getCommits({
       previousCommits: [],
@@ -163,6 +168,11 @@ const main = async () => {
     }
     endDate = add(endDate, { days: -CHUNK_DAY_SIZE });
     startDate = add(startDate, { days: -CHUNK_DAY_SIZE });
+    // cur++;
+
+    // if (cur >= max) {
+    //   done = true;
+    // }
   }
 
   commits = commits.sort((a, b) => {
@@ -208,6 +218,7 @@ const main = async () => {
         numCommits: commits.length,
         uniqueFiles: uniqueFiles.length,
         uniqueAuthors: uniqueAuthors.length,
+        uniqueAuthorsArray: uniqueAuthors,
         commits,
       },
       null,

@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <style>
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+      }
+    </style>
+  </head>
+  <body>
+    <main></main>
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.3/p5.min.js"
+      integrity="sha512-0zGLOFv/+OQ6YfVCSGDQWhrDRx0ONmBqWvs3gI4olm8i6xtKoG1FhEnB4eTaWCVnojyfUDgE8Izeln+mAJAkFA=="
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    ></script>
+    <script>
+      let WIDTH = 800;
+      let HEIGHT = 800;
+      let commitIndex = -1;
+      let maxDimX = 20;
+      let tileDim = 6;
+      let tilePadding = 2;
+      let fileCount = 0;
+
+      let files = {};
+      let hits = [];
+      let commits = [];
+
+      function setup() {
+        WIDTH = windowWidth;
+        HEIGHT = windowHeight;
+
+        maxDimX = Math.floor(Math.floor(windowWidth * 0.75) / tileDim);
+
+        createCanvas(WIDTH, HEIGHT);
+        loadData();
+
+        setInterval(update, 25);
+      }
+
+      function windowResized() {
+        WIDTH = windowWidth;
+        HEIGHT = windowHeight;
+        resizeCanvas(windowWidth, windowHeight);
+      }
+
+      function update() {
+        if (commits.length === 0) {
+          return;
+        }
+
+        const filePaths = Object.keys(files);
+
+        // reset hits
+        const previousFiles = filePaths.reduce((acc, cur) => {
+          if (files[cur].hit) {
+            return acc.concat(files[cur]);
+          }
+          return acc;
+        }, []);
+
+        for (let i = 0; i < previousFiles.length; i++) {
+          const previousFilePath = previousFiles[i].path;
+          files[previousFilePath].hit = false;
+        }
+
+        commitIndex++;
+        const commit = commits[commitIndex];
+
+        // add new files and set hits
+        files = commit.files.reduce((acc, file) => {
+          const { path } = file;
+
+          if (!files[path]) {
+            const len = Object.keys(acc).length ?? 0;
+            const y = Math.floor(len / maxDimX);
+            const x = len % maxDimX;
+            return { ...acc, [path]: { ...file, hit: true, x, y } };
+          }
+
+          return { ...acc, [path]: { ...files[path], hit: true } };
+        }, files);
+
+        const finalPaths = Object.keys(files);
+        hits = finalPaths.reduce((acc, cur) => {
+          if (files[cur].hit) {
+            return acc.concat(files[cur]);
+          }
+          return acc;
+        }, []);
+
+        fileCount = finalPaths.length;
+      }
+
+      function mousePressed() {
+        update();
+      }
+
+      function draw() {
+        background(20, 20, 20, 2);
+        strokeWeight(0);
+        fill(200);
+
+        for (let i = 0; i < hits.length; i++) {
+          rect(
+            hits[i].x * tileDim + 1,
+            hits[i].y * tileDim + 1,
+            tileDim - 2,
+            tileDim - 2
+          );
+        }
+
+        fill(0);
+        rect(0, HEIGHT - 40, WIDTH, 40);
+        textSize(16);
+        fill(200);
+        text(
+          `${commitIndex} / ${commits.length}, ${fileCount}`,
+          10,
+          HEIGHT - 10
+        );
+      }
+
+      async function loadData() {
+        const resp = await fetch("./out/out.json");
+        const data = await resp.json();
+        commits = data.commits;
+        console.log("data loaded");
+      }
+    </script>
+  </body>
+</html>

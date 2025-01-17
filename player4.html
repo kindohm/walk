@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <style>
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+      }
+    </style>
+  </head>
+  <body>
+    <main></main>
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.3/p5.min.js"
+      integrity="sha512-0zGLOFv/+OQ6YfVCSGDQWhrDRx0ONmBqWvs3gI4olm8i6xtKoG1FhEnB4eTaWCVnojyfUDgE8Izeln+mAJAkFA=="
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    ></script>
+    <script>
+      let WIDTH = 800;
+      let HEIGHT = 800;
+      let commitIndex = -1;
+      let maxDimX = 20;
+      let tileDim = 6;
+      let tilePadding = 2;
+      let fileCount = 0;
+
+      let files = {};
+      let hits = [];
+      let commits = [];
+      let redraw = false;
+
+      const exclude = [
+        "package-lock.json",
+        "apps/docs/static/data/test-users.json",
+        ".github/actions/handle-tag/index.js",
+        ".github/actions/get-nx-graph/index.mjs",
+        ".generated.",
+        ".github/actions/handle-tag/index.cjs",
+      ];
+
+      function setup() {
+        WIDTH = windowWidth;
+        HEIGHT = windowHeight;
+
+        maxDimX = Math.floor(Math.floor(windowWidth * 0.75) / tileDim);
+
+        createCanvas(WIDTH, HEIGHT);
+        loadData();
+
+        // setInterval(update, 100);
+      }
+
+      function windowResized() {
+        WIDTH = windowWidth;
+        HEIGHT = windowHeight;
+        resizeCanvas(windowWidth, windowHeight);
+      }
+
+      const maxScore = 20000;
+      const minBlue = 20;
+      const maxBlue = 255;
+
+      function update() {
+        if (commits.length === 0) {
+          return;
+        }
+
+        commitIndex++;
+        const commit = commits[commitIndex];
+
+        // add and update files
+        const filtered = commit.files.filter((f) => {
+          return !exclude.find((x) => f.path.includes(x));
+        });
+
+        files = filtered.reduce((acc, file) => {
+          const len = Object.keys(acc).length;
+          const match = files[file.path];
+          if (match) {
+            const updatedFile = {
+              ...match,
+              score: match.score + file.add + file.rem,
+            };
+
+            return { ...acc, [file.path]: updatedFile };
+          }
+
+          //   if (exclude.find((x) => file.path.indexOf(x)) > -1) {
+          //     return acc;
+          //   }
+
+          const newFile = {
+            path: file.path,
+            y: Math.floor(len / maxDimX),
+            x: len % maxDimX,
+            score: file.add + file.rem,
+          };
+
+          return { ...acc, [file.path]: newFile };
+        }, files);
+
+        redraw = true;
+      }
+
+      function mousePressed() {
+        update();
+      }
+
+      function draw() {
+        if (!redraw) {
+          return;
+        }
+
+        redraw = false;
+
+        background(20);
+        strokeWeight(0);
+
+        const keys = Object.keys(files);
+
+        // console.log("files", files);
+
+        for (let i = 0; i < keys.length; i++) {
+          fill(
+            Math.floor(
+              map(files[keys[i]].score, 0, maxScore, maxBlue, minBlue)
+            ),
+            Math.floor(
+              map(files[keys[i]].score, 0, maxScore, maxBlue, minBlue)
+            ),
+            200
+          );
+
+          // console.log(
+          //   "eh?",
+          //   files[keys[i]].path,
+          //   files[keys[i]].score,
+          //   Math.floor(map(files[keys[i]].score, 0, maxScore, minBlue, maxBlue))
+          // );
+
+          rect(
+            files[keys[i]].x * tileDim + 1,
+            files[keys[i]].y * tileDim + 1,
+            tileDim - 2,
+            tileDim - 2
+          );
+        }
+
+        fill(0);
+        rect(0, HEIGHT - 40, WIDTH, 40);
+        textSize(16);
+        fill(200);
+        text(`${commitIndex} / ${commits.length},`, 10, HEIGHT - 10);
+      }
+
+      async function loadData() {
+        const resp = await fetch("./out/out.json");
+        const data = await resp.json();
+        commits = data.commits;
+        console.log("data loaded");
+      }
+    </script>
+  </body>
+</html>
