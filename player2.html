@@ -89,6 +89,11 @@
           (output) => output.name === "Elektron Syntakt"
         );
 
+        if (!device) {
+          console.log("no device");
+          return;
+        }
+
         voice = device.channels[7];
         hat = device.channels[4];
         console.log("MIDI initialized");

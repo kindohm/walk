@@ -99,6 +99,7 @@
 
           return;
         }
+
         if (commitIndex > data.commits.length - 1) return;
         if (commitIndex > 0 && commitIndex % 200 === 0) {
           cleanUpFiles();
@@ -109,20 +110,23 @@
         const { sha, author, fileCount, adds, rems, date, files } = commit;
 
         let stop = false;
-        if (fileCount < 2) {
-          Math.random() > 0.5 && tiny.playNote("c4");
-          stop = true;
-        } else if (fileCount < 4) {
-          hat.playNote("c4");
-        } else if (fileCount > CLAP_THRESHOLD) {
-          hat.playNote("c3");
-          kick.playNote("c3");
-          clap.playNote("c4");
-          big = true;
-        } else if (adds > rems) {
-          kick.playNote("c3");
-        } else {
-          snare.playNote("c4");
+
+        if (hat) {
+          if (fileCount < 2) {
+            Math.random() > 0.5 && tiny.playNote("c4");
+            stop = true;
+          } else if (fileCount < 4) {
+            hat.playNote("c4");
+          } else if (fileCount > CLAP_THRESHOLD) {
+            hat.playNote("c3");
+            kick.playNote("c3");
+            clap.playNote("c4");
+            big = true;
+          } else if (adds > rems) {
+            kick.playNote("c3");
+          } else {
+            snare.playNote("c4");
+          }
         }
 
         if (!stop) {
@@ -134,8 +138,10 @@
           currentCommit = commit;
           const paths = files.map((f) => f.path);
 
-          if (!authorTiles.find((a) => a.author === author)) {
-            melody.playNote(randInt(30, 70));
+          if (melody) {
+            if (!authorTiles.find((a) => a.author === author)) {
+              melody.playNote(randInt(30, 70));
+            }
           }
 
           // update state here....
@@ -204,6 +210,12 @@
           (output) => output.name === "Elektron Syntakt"
         );
 
+        setTimeout(nextCommit, BASE_INTERVAL);
+
+        if (!device) {
+          return;
+        }
+
         kick = device.channels[1];
         snare = device.channels[2];
         clap = device.channels[3];
@@ -212,8 +224,6 @@
         tiny = device.channels[6];
 
         console.log("MIDI initialized");
-
-        setTimeout(nextCommit, BASE_INTERVAL);
       }
 
       init();

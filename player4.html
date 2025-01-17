@@ -23,14 +23,19 @@
       let HEIGHT = 800;
       let commitIndex = -1;
       let maxDimX = 20;
-      let tileDim = 6;
+      let tileSize = 10;
       let tilePadding = 2;
       let fileCount = 0;
 
+      let authorTileSize = 16;
+      let maxAuthorDimX = 10;
+
+      let authors = {};
       let files = {};
       let hits = [];
       let commits = [];
       let redraw = false;
+      let connections = [];
 
       const exclude = [
         "package-lock.json",
@@ -45,12 +50,17 @@
         WIDTH = windowWidth;
         HEIGHT = windowHeight;
 
-        maxDimX = Math.floor(Math.floor(windowWidth * 0.75) / tileDim);
+        maxDimX = Math.floor(Math.floor(windowWidth * 0.75) / tileSize);
+
+        maxAuthorDimX = Math.floor(
+          Math.floor(windowWidth * 0.25) / authorTileSize
+        );
 
         createCanvas(WIDTH, HEIGHT);
         loadData();
 
-        // setInterval(update, 100);
+        background(0);
+        setInterval(update, 100);
       }
 
       function windowResized() {
@@ -68,8 +78,25 @@
           return;
         }
 
+        connections = [];
         commitIndex++;
         const commit = commits[commitIndex];
+
+        // y: Math.floor(len / maxDimX),
+        //     x: len % maxDimX,
+
+        const authorsLength = Object.keys(authors).length;
+
+        if (!authors[commit.author]) {
+          authors[commit.author] = {
+            name: commit.author,
+            score: 1,
+            x: authorsLength % maxAuthorDimX,
+            y: Math.floor(authorsLength / maxAuthorDimX),
+          };
+        } else {
+          authors[commit.author].score++;
+        }
 
         // add and update files
         const filtered = commit.files.filter((f) => {
@@ -88,10 +115,6 @@
             return { ...acc, [file.path]: updatedFile };
           }
 
-          //   if (exclude.find((x) => file.path.indexOf(x)) > -1) {
-          //     return acc;
-          //   }
-
           const newFile = {
             path: file.path,
             y: Math.floor(len / maxDimX),
@@ -102,6 +125,16 @@
           return { ...acc, [file.path]: newFile };
         }, files);
 
+        connections = commit.files.map((f) => {
+          const file = files[f.path];
+          return {
+            x1: authors[commit.author].x,
+            y1: authors[commit.author].y,
+            x2: file.x,
+            y2: file.y,
+          };
+        });
+
         redraw = true;
       }
 
@@ -111,6 +144,7 @@
 
       function draw() {
         if (!redraw) {
+          // background(20, 20, 20, 100);
           return;
         }
 
@@ -125,13 +159,9 @@
 
         for (let i = 0; i < keys.length; i++) {
           fill(
-            Math.floor(
-              map(files[keys[i]].score, 0, maxScore, maxBlue, minBlue)
-            ),
-            Math.floor(
-              map(files[keys[i]].score, 0, maxScore, maxBlue, minBlue)
-            ),
-            200
+            Math.floor(map(files[keys[i]].score, 0, maxScore, 200, 0)),
+            Math.floor(map(files[keys[i]].score, 0, maxScore, 200, 0)),
+            Math.floor(map(files[keys[i]].score, 0, maxScore, 255, 200))
           );
 
           // console.log(
@@ -142,12 +172,42 @@
           // );
 
           rect(
-            files[keys[i]].x * tileDim + 1,
-            files[keys[i]].y * tileDim + 1,
-            tileDim - 2,
-            tileDim - 2
+            files[keys[i]].x * tileSize + 1,
+            files[keys[i]].y * tileSize + 1,
+            tileSize - 2,
+            tileSize - 2
           );
         }
+
+        const authorKeys = Object.keys(authors);
+        const start = Math.ceil(WIDTH * 0.75);
+
+        for (let i = 0; i < authorKeys.length; i++) {
+          const { x, y, score } = authors[authorKeys[i]];
+          fill(Math.min(score + 50, 255));
+          rect(
+            x * authorTileSize + 1 + start,
+            y * authorTileSize + 1,
+            authorTileSize - 2,
+            authorTileSize - 2
+          );
+        }
+
+        connections.forEach((connection) => {
+          noFill();
+          stroke(200);
+          strokeWeight(2);
+          bezier(
+            connection.x1 * authorTileSize + start + authorTileSize / 2,
+            connection.y1 * authorTileSize + authorTileSize / 2,
+            windowWidth / 2,
+            windowHeight / 2,
+            windowWidth / 2,
+            windowHeight / 2,
+            connection.x2 * tileSize + tileSize / 2,
+            connection.y2 * tileSize + tileSize / 2
+          );
+        });
 
         fill(0);
         rect(0, HEIGHT - 40, WIDTH, 40);
