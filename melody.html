@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <style>
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+      }
+
+      body {
+        font-family: sans-serif;
+      }
+
+      .lists {
+        display: flex;
+      }
+
+      ul {
+        background-color: #ccc;
+        padding: 2rem;
+        margin: 2rem;
+      }
+
+      h1 {
+        font-family: monospace;
+        margin-left: 2rem;
+      }
+    </style>
+  </head>
+  <body>
+    <main></main>
+
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.3/p5.min.js"
+      integrity="sha512-0zGLOFv/+OQ6YfVCSGDQWhrDRx0ONmBqWvs3gI4olm8i6xtKoG1FhEnB4eTaWCVnojyfUDgE8Izeln+mAJAkFA=="
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    ></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/webmidi@latest/dist/iife/webmidi.iife.js"></script>
+
+    <script>
+      const INTERVAL = 1000;
+      const BALL_SIZE = 10;
+      const ALPHA_RATE = 0.25;
+      const LIFE_DUR = INTERVAL * 30;
+      const BG_ALPHA = 100;
+      const VELOCITY_SCALE = 0.5;
+      const VELOCITY_POW = 1; // higher values make the range tighter. lower values makes extremes more probable
+
+      let commitIndex = 0;
+      let data;
+      let device;
+
+      const scale = [
+        "c0",
+        "d0",
+        "e0",
+        "f0",
+        "g0",
+        "a0",
+        "b0",
+        "c1",
+        "d1",
+        "e1",
+        "f1",
+        "g1",
+        "a1",
+        "b1",
+        "c2",
+        "d2",
+        "e2",
+        "f2",
+        "g2",
+        "a2",
+        "b2",
+        "c3",
+        "d3",
+        "e3",
+        "f3",
+        "g3",
+        "a3",
+        "b3",
+      ];
+
+      function randInt(min, max) {
+        const minCeiled = Math.ceil(min);
+        const maxFloored = Math.floor(max);
+        return Math.floor(
+          Math.random() * (maxFloored - minCeiled + 1) + minCeiled
+        ); // The maximum is inclusive and the minimum is inclusive
+      }
+
+      function getRandomArbitrary(min, max) {
+        return Math.random() * (max - min) + min;
+      }
+
+      function onEnabled() {
+        console.log("MIDI enabled");
+        console.log(WebMidi.outputs); //  WebMidi.outputs.forEach((o) => console.log(o.name));
+
+        device = WebMidi.outputs.find(
+          (output) => output.name === "Elektron Analog Rytm MKII"
+        );
+      }
+
+      function setup() {
+        WIDTH = windowWidth;
+        HEIGHT = windowHeight;
+        createCanvas(WIDTH, HEIGHT);
+        updateSizes();
+        // setInterval(spawnCommit, INTERVAL);
+      }
+
+      function windowResized() {
+        WIDTH = windowWidth;
+        HEIGHT = windowHeight;
+        resizeCanvas(windowWidth, windowHeight);
+        updateSizes();
+      }
+
+      function updateSizes() {}
+
+      let previousCommitSpawnTime = -1000000;
+      let run = true;
+      let updating = false;
+      function update() {
+        updating = true;
+        if (!data || !device) {
+          updating = false;
+          return;
+        }
+
+        const now = millis();
+        if (now - previousCommitSpawnTime > INTERVAL) {
+          spawnCommit(now);
+        }
+
+        // remove dead notes
+        notes = notes.filter((note) => {
+          return note.killAt > now;
+        });
+
+        commitBalls = commitBalls.filter((commit) => {
+          return commit.killAt > now;
+        });
+
+        commitDetails = {
+          ...commitDetails,
+          alpha: commitDetails.alpha - ALPHA_RATE,
+        };
+
+        // move commit balls
+        commitBalls = commitBalls.map((commit) => {
+          const vX =
+            (commit.x >= WIDTH - BALL_SIZE && commit.velocity[0] > 0) ||
+            (commit.x <= BALL_SIZE && commit.velocity[0] < 0)
+              ? -commit.velocity[0]
+              : commit.velocity[0];
+
+          const vY =
+            (commit.y >= HEIGHT - BALL_SIZE && commit.velocity[1] > 0) ||
+            (commit.y <= BALL_SIZE && commit.velocity[1] < 0)
+              ? -commit.velocity[1]
+              : commit.velocity[1];
+
+          return {
+            ...commit,
+            x: commit.x + commit.velocity[0],
+            y: commit.y + commit.velocity[1],
+            alpha: commit.alpha - ALPHA_RATE,
+            velocity: [vX, vY],
+          };
+        });
+
+        // make alive notes visible
+        notes = notes.map((note) => {
+          const triggered = !note.played && note.playAt <= now;
+          if (triggered) {
+            // trigger midi note
+            device.channels[1].playNote(scale[note.value]);
+            fileDetails = { ...note };
+
+            fill(200);
+            text(scale[note.value], WIDTH / 2, HEIGHT / 2);
+          }
+
+          const vX =
+            (note.x >= WIDTH - BALL_SIZE && note.velocity[0] > 0) ||
+            (note.x <= BALL_SIZE && note.velocity[0] < 0)
+              ? -note.velocity[0]
+              : note.velocity[0];
+
+          const vY =
+            (note.y >= HEIGHT - BALL_SIZE && note.velocity[1] > 0) ||
+            (note.y <= BALL_SIZE && note.velocity[1] < 0)
+              ? -note.velocity[1]
+              : note.velocity[1];
+
+          return {
+            ...note,
+            x: note.x + note.velocity[0],
+            y: note.y + note.velocity[1],
+            alpha: triggered ? 255 : note.alpha - ALPHA_RATE,
+            played: note.playAt <= now,
+            velocity: [vX, vY],
+          };
+        });
+        run = false;
+        updating = false;
+      }
+
+      let notes = [];
+      let commitBalls = [];
+      let commitDetails = {};
+      let fileDetails = {};
+
+      function spawnCommit(now) {
+        commitIndex++;
+
+        const color = [randInt(50, 255), randInt(50, 255), randInt(50, 255)];
+
+        const commit = data.commits[commitIndex];
+        commitDetails = {
+          ...commit,
+          killAt: now + LIFE_DUR,
+          alpha: 255,
+        };
+
+        // console.log("SPAWN", commit.files.length);
+        const dur = Math.floor(INTERVAL / commit.files.length);
+
+        commitBalls.push({
+          sha: commit.sha,
+          playAt: now,
+          killAt: now + LIFE_DUR,
+          x: randInt(0, WIDTH),
+          y: randInt(0, HEIGHT),
+          color,
+          velocity: [
+            Math.pow(
+              getRandomArbitrary(-VELOCITY_SCALE, VELOCITY_SCALE),
+              VELOCITY_POW
+            ),
+            Math.pow(
+              getRandomArbitrary(-VELOCITY_SCALE, VELOCITY_SCALE),
+              VELOCITY_POW
+            ),
+          ],
+          alpha: 255,
+        });
+
+        commit.files.forEach((file, i) => {
+          const value = Math.floor(
+            map(file.add + file.rem, 0, 100, 0, scale.length - 1)
+          );
+          const validValue = Math.min(Math.max(value, 0), scale.length - 1);
+
+          notes.push({
+            sha: commit.sha,
+            path: file.path,
+            add: file.add,
+            rem: file.rem,
+            played: false,
+            playAt: now + dur * i,
+            killAt: now + LIFE_DUR,
+            x: randInt(0, WIDTH),
+            y: randInt(0, HEIGHT),
+            value: validValue,
+            color,
+            author: commit.author,
+            path: file.path,
+            velocity: [
+              Math.pow(
+                getRandomArbitrary(-VELOCITY_SCALE, VELOCITY_SCALE),
+                VELOCITY_POW
+              ),
+              Math.pow(
+                getRandomArbitrary(-VELOCITY_SCALE, VELOCITY_SCALE),
+                VELOCITY_POW
+              ),
+            ],
+            alpha: 255,
+          });
+        });
+
+        previousCommitSpawnTime = now;
+      }
+
+      function draw() {
+        if (!updating) {
+          update();
+        }
+
+        background(0, 0, 0, BG_ALPHA);
+
+        notes.forEach((note) => {
+          if (note.played) {
+            fill(0);
+            strokeWeight(1);
+            stroke(note.color[0], note.color[1], note.color[2], note.alpha);
+
+            const commit = commitBalls.find((c) => c.sha === note.sha);
+
+            stroke(
+              note.color[0],
+              note.color[1],
+              note.color[2],
+              note.alpha * 0.5
+            );
+            line(note.x, note.y, commit.x, commit.y);
+
+            ellipse(note.x, note.y, BALL_SIZE);
+
+            // fill(200, 200, 200, note.alpha);
+            // text(note.author, note.x, note.y);
+            // text(note.path, note.x, note.y + 15);
+          }
+        });
+
+        commitBalls.forEach((commit) => {
+          strokeWeight(0);
+          fill(commit.color[0], commit.color[1], commit.color[2], commit.alpha);
+          ellipse(commit.x, commit.y, BALL_SIZE);
+        });
+
+        fill(200, 200, 200, commitDetails.alpha);
+        textFont("Monaco", 16);
+        text(
+          `${commitDetails.sha}\n${commitDetails.date}\n${
+            commitDetails.author
+          }\n+${commitDetails.adds ?? 0} / -${commitDetails.rems ?? 0}\n\n${
+            fileDetails.path
+          } +${fileDetails.add ?? 0} / -${fileDetails.rems ?? 0}\n\n${
+            commitDetails.notes ?? ""
+          }`,
+          20,
+          20
+        );
+
+        // text(
+        //   `${fileDetails.path} +${fileDetails.add ?? 0} / -${
+        //     fileDetails.rems ?? 0
+        //   }`,
+        //   20,
+        //   HEIGHT - 20
+        // );
+      }
+
+      const init = async () => {
+        const resp = await fetch("./out/out.json");
+        data = await resp.json();
+
+        console.log("data loaded");
+        commitIndex = -1;
+        WebMidi.enable()
+          .then(onEnabled)
+          .catch((err) => console.error(err));
+      };
+
+      init();
+    </script>
+  </body>
+</html>

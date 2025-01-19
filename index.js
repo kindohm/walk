@@ -2,7 +2,7 @@ const { exec } = require("child_process");
 const fs = require("fs");
 const { add } = require("date-fns");
 
-const CHUNK_DAY_SIZE = 12;
+const CHUNK_DAY_SIZE = 1000;
 const exclude = [
   ".svg",
   ".png",
@@ -49,7 +49,7 @@ const getCommits = ({ previousCommits, startDate, endDate }) => {
     // const command = `git log --numstat 448a1bb4d5ec9fe872fdee03147c429c024a3f13`;
     const command = `git log --numstat --pretty --after=${startDateString} --before=${endDateString}`;
     exec(
-      `cd ~/code/thrivent-web && ${command}`,
+      `cd ~/code/express && ${command}`,
       { maxBuffer: 1024 * 10000 },
       async (error, stdout, stderr) => {
         if (error) {
